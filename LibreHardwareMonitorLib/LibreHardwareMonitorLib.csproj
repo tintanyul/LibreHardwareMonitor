@@ -158,4 +158,13 @@
   <ItemGroup>
     <PackageReference Include="System.Management" Version="4.5.0" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <Version>0.8.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net452|AnyCPU'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
 </Project>
