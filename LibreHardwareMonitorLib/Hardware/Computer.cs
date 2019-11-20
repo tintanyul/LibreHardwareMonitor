@@ -8,9 +8,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Security.Permissions;
-using LibreHardwareMonitor.Hardware.Controller.AquaComputer;
-using LibreHardwareMonitor.Hardware.Controller.Heatmaster;
-using LibreHardwareMonitor.Hardware.Controller.TBalancer;
 using LibreHardwareMonitor.Hardware.Gpu;
 using LibreHardwareMonitor.Hardware.Memory;
 using LibreHardwareMonitor.Hardware.Motherboard;
@@ -86,18 +83,6 @@ namespace LibreHardwareMonitor.Hardware
             {
                 if (_open && value != _controllerEnabled)
                 {
-                    if (value)
-                    {
-                        Add(new TBalancerGroup(_settings));
-                        Add(new HeatmasterGroup(_settings));
-                        Add(new AquaComputerGroup(_settings));
-                    }
-                    else
-                    {
-                        RemoveType<TBalancerGroup>();
-                        RemoveType<HeatmasterGroup>();
-                        RemoveType<AquaComputerGroup>();
-                    }
                 }
 
                 _controllerEnabled = value;
@@ -372,9 +357,6 @@ namespace LibreHardwareMonitor.Hardware
 
             if (_controllerEnabled)
             {
-                Add(new TBalancerGroup(_settings));
-                Add(new HeatmasterGroup(_settings));
-                Add(new AquaComputerGroup(_settings));
             }
 
             if (_storageEnabled)
