@@ -19,14 +19,16 @@ namespace LibreHardwareMonitor.Hardware.CPU
         private readonly Sensor[] _coreTemperatures;
         private readonly Sensor[] _distToTjMaxTemperatures;
 
-        private readonly uint[] _energyStatusMsrs = { MSR_PKG_ENERY_STATUS, MSR_PP0_ENERY_STATUS, MSR_PP1_ENERY_STATUS, MSR_DRAM_ENERGY_STATUS };
+        private readonly uint[] _energyStatusMsrs = { MSR_PKG_ENERGY_STATUS, MSR_PP0_ENERGY_STATUS, MSR_PP1_ENERGY_STATUS, MSR_DRAM_ENERGY_STATUS };
         private readonly float _energyUnitMultiplier;
+        private readonly float _powerUnits;
         private readonly uint[] _lastEnergyConsumed;
         private readonly DateTime[] _lastEnergyTime;
 
         private readonly MicroArchitecture _microArchitecture;
         private readonly Sensor _packageTemperature;
         private readonly Sensor[] _powerSensors;
+        private readonly Sensor _powerLimitSensor;
         private readonly double _timeStampCounterMultiplier;
 
         public IntelCpu(int processorIndex, CpuId[][] cpuId, ISettings settings) : base(processorIndex, cpuId, settings)
@@ -340,9 +342,12 @@ namespace LibreHardwareMonitor.Hardware.CPU
                             break;
                         default:
                             _energyUnitMultiplier = 1.0f / (1 << (int)((eax >> 8) & 0x1F));
+                            _powerUnits = 1.0f / (1 << (int)((eax) & 0xf));
                             break;
                     }
 
+                var powerSensorsCount = 0;
+                
                 if (_energyUnitMultiplier != 0)
                 {
                     string[] powerSensorLabels = { "CPU Package", "CPU Cores", "CPU Graphics", "CPU Memory" }; 
@@ -356,12 +361,21 @@ namespace LibreHardwareMonitor.Hardware.CPU
                         _lastEnergyTime[i] = DateTime.UtcNow;
                         _lastEnergyConsumed[i] = eax;
                         _powerSensors[i] = new Sensor(powerSensorLabels[i],
-                                                      i,
+                                                      powerSensorsCount++,
                                                       SensorType.Power,
                                                       this,
                                                       settings);
 
                         ActivateSensor(_powerSensors[i]);
+                    }
+                }
+
+                if (_powerUnits != 0)
+                {
+                    if (Ring0.ReadMsr(MSR_PKG_POWER_LIMIT, out uint _, out uint _))
+                    {
+                        _powerLimitSensor = new Sensor("CPU PL1", powerSensorsCount, SensorType.Power, this, settings);
+                        ActivateSensor(_powerLimitSensor);
                     }
                 }
             }
@@ -402,10 +416,11 @@ namespace LibreHardwareMonitor.Hardware.CPU
                 IA32_TEMPERATURE_TARGET,
                 IA32_PACKAGE_THERM_STATUS,
                 MSR_RAPL_POWER_UNIT,
-                MSR_PKG_ENERY_STATUS,
+                MSR_PKG_POWER_LIMIT,
+                MSR_PKG_ENERGY_STATUS,
                 MSR_DRAM_ENERGY_STATUS,
-                MSR_PP0_ENERY_STATUS,
-                MSR_PP1_ENERY_STATUS
+                MSR_PP0_ENERGY_STATUS,
+                MSR_PP1_ENERGY_STATUS
             };
         }
 
@@ -554,6 +569,14 @@ namespace LibreHardwareMonitor.Hardware.CPU
                     _lastEnergyConsumed[sensor.Index] = energyConsumed;
                 }
             }
+
+            if (_powerLimitSensor != null)
+            {
+                if (Ring0.ReadMsr(MSR_PKG_POWER_LIMIT, out uint eax, out uint _))
+                {
+                    _powerLimitSensor.Value = _powerUnits * (eax & 0x7fff);
+                }
+            }
         }
 
         [SuppressMessage("ReSharper", "IdentifierTypo")]
@@ -583,10 +606,11 @@ namespace LibreHardwareMonitor.Hardware.CPU
         private const uint IA32_THERM_STATUS_MSR = 0x019C;
 
         private const uint MSR_DRAM_ENERGY_STATUS = 0x619;
-        private const uint MSR_PKG_ENERY_STATUS = 0x611;
+        private const uint MSR_PKG_POWER_LIMIT = 0x610;
+        private const uint MSR_PKG_ENERGY_STATUS = 0x611;
         private const uint MSR_PLATFORM_INFO = 0xCE;
-        private const uint MSR_PP0_ENERY_STATUS = 0x639;
-        private const uint MSR_PP1_ENERY_STATUS = 0x641;
+        private const uint MSR_PP0_ENERGY_STATUS = 0x639;
+        private const uint MSR_PP1_ENERGY_STATUS = 0x641;
 
         private const uint MSR_RAPL_POWER_UNIT = 0x606;
         // ReSharper restore InconsistentNaming
