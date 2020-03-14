@@ -172,6 +172,10 @@ namespace LibreHardwareMonitor.Hardware.CPU
                             _microArchitecture = MicroArchitecture.IceLake;
                             tjMax = GetTjMaxFromMsr();
                             break;
+                        case 0xA6: // Intel Core i3, i5, i7 10xxxU (14nm)
+                            _microArchitecture = MicroArchitecture.CometLake;
+                            tjMax = GetTjMaxFromMsr();
+                            break;
                         case 0x86: // Tremont (10nm) (Elkhart Lake, Skyhawk Lake)
                             _microArchitecture = MicroArchitecture.Tremont;
                             tjMax = GetTjMaxFromMsr();
@@ -216,29 +220,31 @@ namespace LibreHardwareMonitor.Hardware.CPU
             // set timeStampCounterMultiplier
             switch (_microArchitecture)
             {
-                case MicroArchitecture.NetBurst:
                 case MicroArchitecture.Atom:
                 case MicroArchitecture.Core:
+                case MicroArchitecture.NetBurst:
                 {
                     if (Ring0.ReadMsr(IA32_PERF_STATUS, out uint _, out uint edx))
                     {
                         _timeStampCounterMultiplier = ((edx >> 8) & 0x1f) + 0.5 * ((edx >> 14) & 1);
                     }
+
+                    break;
                 }
-                break;
+                case MicroArchitecture.Airmont:
+                case MicroArchitecture.Broadwell:
+                case MicroArchitecture.CannonLake:
+                case MicroArchitecture.CometLake:
+                case MicroArchitecture.Goldmont:
+                case MicroArchitecture.GoldmontPlus:
+                case MicroArchitecture.Haswell:
+                case MicroArchitecture.IceLake:
+                case MicroArchitecture.IvyBridge:
+                case MicroArchitecture.KabyLake:
                 case MicroArchitecture.Nehalem:
                 case MicroArchitecture.SandyBridge:
-                case MicroArchitecture.IvyBridge:
-                case MicroArchitecture.Haswell:
-                case MicroArchitecture.Broadwell:
                 case MicroArchitecture.Silvermont:
                 case MicroArchitecture.Skylake:
-                case MicroArchitecture.Airmont:
-                case MicroArchitecture.Goldmont:
-                case MicroArchitecture.KabyLake:
-                case MicroArchitecture.GoldmontPlus:
-                case MicroArchitecture.CannonLake:
-                case MicroArchitecture.IceLake:
                 case MicroArchitecture.TigerLake:
                 case MicroArchitecture.Tremont:
                 {
@@ -337,18 +343,19 @@ namespace LibreHardwareMonitor.Hardware.CPU
                     ActivateSensor(_coreClocks[i]);
             }
 
-            if (_microArchitecture == MicroArchitecture.SandyBridge ||
-                _microArchitecture == MicroArchitecture.IvyBridge ||
-                _microArchitecture == MicroArchitecture.Haswell ||
+            if (_microArchitecture == MicroArchitecture.Airmont ||
                 _microArchitecture == MicroArchitecture.Broadwell ||
-                _microArchitecture == MicroArchitecture.Skylake ||
-                _microArchitecture == MicroArchitecture.Silvermont ||
-                _microArchitecture == MicroArchitecture.Airmont ||
-                _microArchitecture == MicroArchitecture.Goldmont ||
-                _microArchitecture == MicroArchitecture.KabyLake ||
-                _microArchitecture == MicroArchitecture.GoldmontPlus ||
                 _microArchitecture == MicroArchitecture.CannonLake ||
+                _microArchitecture == MicroArchitecture.CometLake ||
+                _microArchitecture == MicroArchitecture.Goldmont ||
+                _microArchitecture == MicroArchitecture.GoldmontPlus ||
+                _microArchitecture == MicroArchitecture.Haswell ||
                 _microArchitecture == MicroArchitecture.IceLake ||
+                _microArchitecture == MicroArchitecture.IvyBridge ||
+                _microArchitecture == MicroArchitecture.KabyLake ||
+                _microArchitecture == MicroArchitecture.SandyBridge ||
+                _microArchitecture == MicroArchitecture.Silvermont ||
+                _microArchitecture == MicroArchitecture.Skylake ||
                 _microArchitecture == MicroArchitecture.TigerLake ||
                 _microArchitecture == MicroArchitecture.Tremont)
             {
@@ -510,7 +517,9 @@ namespace LibreHardwareMonitor.Hardware.CPU
                     _packageTemperature.Value = tjMax - tSlope * deltaT;
                 }
                 else
+                {
                     _packageTemperature.Value = null;
+                }
             }
 
             if (HasTimeStampCounter && _timeStampCounterMultiplier > 0)
@@ -529,20 +538,20 @@ namespace LibreHardwareMonitor.Hardware.CPU
                                 uint multiplier = eax & 0xff;
                                 _coreClocks[i].Value = (float)(multiplier * newBusClock);
                                 break;
-                            }                                
-
-                            case MicroArchitecture.SandyBridge:
-                            case MicroArchitecture.IvyBridge:
-                            case MicroArchitecture.Haswell:
-                            case MicroArchitecture.Broadwell:
-                            case MicroArchitecture.Silvermont:
+                            }
                             case MicroArchitecture.Airmont:
-                            case MicroArchitecture.Skylake:
-                            case MicroArchitecture.Goldmont:
-                            case MicroArchitecture.KabyLake:
-                            case MicroArchitecture.GoldmontPlus:
+                            case MicroArchitecture.Broadwell:
                             case MicroArchitecture.CannonLake:
+                            case MicroArchitecture.CometLake:
+                            case MicroArchitecture.Goldmont:
+                            case MicroArchitecture.GoldmontPlus:
+                            case MicroArchitecture.Haswell:
                             case MicroArchitecture.IceLake:
+                            case MicroArchitecture.IvyBridge:
+                            case MicroArchitecture.KabyLake:
+                            case MicroArchitecture.SandyBridge:
+                            case MicroArchitecture.Silvermont:
+                            case MicroArchitecture.Skylake:
                             case MicroArchitecture.TigerLake:
                             case MicroArchitecture.Tremont:
                             {
@@ -550,7 +559,6 @@ namespace LibreHardwareMonitor.Hardware.CPU
                                 _coreClocks[i].Value = (float)(multiplier * newBusClock);
                                 break;
                             }
-                                
                             default:
                             {
                                 double multiplier = ((eax >> 8) & 0x1f) + 0.5 * ((eax >> 14) & 1);
@@ -609,25 +617,26 @@ namespace LibreHardwareMonitor.Hardware.CPU
         [SuppressMessage("ReSharper", "IdentifierTypo")]
         private enum MicroArchitecture
         {
-            Unknown,
-            NetBurst,
-            Core,
-            Atom,
-            Nehalem,
-            SandyBridge,
-            IvyBridge,
-            Haswell,
-            Broadwell,
-            Silvermont,
-            Skylake,
             Airmont,
-            KabyLake,
+            Atom,
+            Broadwell,
+            CannonLake,
+            CometLake,
+            Core,
             Goldmont,
             GoldmontPlus,
-            CannonLake,
+            Haswell,
             IceLake,
+            IvyBridge,
+            KabyLake,
+            Nehalem,
+            NetBurst,
+            SandyBridge,
+            Silvermont,
+            Skylake,
             TigerLake,
-            Tremont
+            Tremont,
+            Unknown
         }
 
         // ReSharper disable InconsistentNaming
