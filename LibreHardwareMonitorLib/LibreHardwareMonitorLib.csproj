@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <Compile Include="Hardware\Control.cs" />
+    <Compile Include="Hardware\GroupAffinity.cs" />
     <Compile Include="Interop\Ftd2xx.cs" />
     <Compile Include="Hardware\Cpu\Amd0FCpu.cs" />
     <Compile Include="Hardware\Cpu\Amd10Cpu.cs" />
