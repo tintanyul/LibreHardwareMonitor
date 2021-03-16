@@ -47,7 +47,7 @@ namespace LibreHardwareMonitor.UI
 
         private Font _largeFont;
         private Font _smallFont;
-        private Brush _darkWhite;
+        private Brush _textBrush;
         private StringFormat _stringFormat;
         private StringFormat _trimStringFormat;
         private StringFormat _alignRightStringFormat;
@@ -59,7 +59,6 @@ namespace LibreHardwareMonitor.UI
             computer.HardwareAdded += HardwareAdded;
             computer.HardwareRemoved += HardwareRemoved;
 
-            _darkWhite = new SolidBrush(Color.FromArgb(0xF0, 0xF0, 0xF0));
             _stringFormat = new StringFormat { FormatFlags = StringFormatFlags.NoWrap };
             _trimStringFormat = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
             _alignRightStringFormat = new StringFormat { Alignment = StringAlignment.Far, FormatFlags = StringFormatFlags.NoWrap };
@@ -131,10 +130,10 @@ namespace LibreHardwareMonitor.UI
             SetFontSize(settings.GetValue("sensorGadget.FontSize", 7.5f));
             Resize(settings.GetValue("sensorGadget.Width", Size.Width));
 
-            ContextMenu contextMenu = new ContextMenu();
-            MenuItem hardwareNamesItem = new MenuItem("Hardware Names");
-            contextMenu.MenuItems.Add(hardwareNamesItem);
-            MenuItem fontSizeMenu = new MenuItem("Font Size");
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
+            ToolStripMenuItem hardwareNamesItem = new ToolStripMenuItem("Hardware Names");
+            contextMenuStrip.Items.Add(hardwareNamesItem);
+            ToolStripMenuItem fontSizeMenu = new ToolStripMenuItem("Font Size");
             for (int i = 0; i < 4; i++)
             {
                 float size;
@@ -148,42 +147,67 @@ namespace LibreHardwareMonitor.UI
                     default: throw new NotImplementedException();
                 }
 
-                MenuItem item = new MenuItem(name) { Checked = _fontSize == size };
+                ToolStripItem item = new ToolStripMenuItem(name) { Checked = _fontSize == size };
                 item.Click += delegate
                 {
                     SetFontSize(size);
                     settings.SetValue("sensorGadget.FontSize", size);
-                    foreach (MenuItem mi in fontSizeMenu.MenuItems)
+                    foreach (ToolStripMenuItem mi in fontSizeMenu.DropDownItems)
                         mi.Checked = mi == item;
                 };
-                fontSizeMenu.MenuItems.Add(item);
+                fontSizeMenu.DropDownItems.Add(item);
             }
-            contextMenu.MenuItems.Add(fontSizeMenu);
-            contextMenu.MenuItems.Add(new MenuItem("-"));
-            MenuItem lockItem = new MenuItem("Lock Position and Size");
-            contextMenu.MenuItems.Add(lockItem);
-            contextMenu.MenuItems.Add(new MenuItem("-"));
-            MenuItem alwaysOnTopItem = new MenuItem("Always on Top");
-            contextMenu.MenuItems.Add(alwaysOnTopItem);
-            MenuItem opacityMenu = new MenuItem("Opacity");
-            contextMenu.MenuItems.Add(opacityMenu);
+            contextMenuStrip.Items.Add(fontSizeMenu);
+
+            Color fontColor = settings.GetValue("sensorGadget.FontColor", Color.White);
+            int fontColorArgb = fontColor.ToArgb();
+
+            SetFontColor(fontColor);
+
+            IEnumerable<Color> providedColors = Enum.GetValues(typeof(KnownColor))
+                .Cast<KnownColor>()
+                .Select(x => Color.FromKnownColor(x))
+                .Where(x => !x.IsSystemColor && x.Name.Length < 7);
+
+            ToolStripMenuItem fontColorMenu = new ToolStripMenuItem("Font Color");
+            foreach (Color color in providedColors)
+            {
+                ToolStripItem item = new ToolStripMenuItem(color.Name) { Checked = fontColorArgb == color.ToArgb() };
+                item.Click += delegate
+                {
+                    SetFontColor(color);
+                    settings.SetValue("sensorGadget.FontColor", color);
+                    foreach (ToolStripMenuItem mi in fontColorMenu.DropDownItems)
+                        mi.Checked = mi == item;
+                };
+                fontColorMenu.DropDownItems.Add(item);
+            }
+            contextMenuStrip.Items.Add(fontColorMenu);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem lockItem = new ToolStripMenuItem("Lock Position and Size");
+            contextMenuStrip.Items.Add(lockItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem alwaysOnTopItem = new ToolStripMenuItem("Always on Top");
+            contextMenuStrip.Items.Add(alwaysOnTopItem);
+            ToolStripMenuItem opacityMenu = new ToolStripMenuItem("Opacity");
+            contextMenuStrip.Items.Add(opacityMenu);
             Opacity = (byte)settings.GetValue("sensorGadget.Opacity", 255);
 
             for (int i = 0; i < 5; i++)
             {
-                MenuItem item = new MenuItem((20 * (i + 1)).ToString() + " %");
+                ToolStripMenuItem item = new ToolStripMenuItem((20 * (i + 1)).ToString() + " %");
                 byte o = (byte)(51 * (i + 1));
                 item.Checked = Opacity == o;
                 item.Click += delegate
                 {
                     Opacity = o;
                     settings.SetValue("sensorGadget.Opacity", Opacity);
-                    foreach (MenuItem mi in opacityMenu.MenuItems)
+                    foreach (ToolStripMenuItem mi in opacityMenu.DropDownItems)
                         mi.Checked = mi == item;
                 };
-                opacityMenu.MenuItems.Add(item);
+                opacityMenu.DropDownItems.Add(item);
             }
-            ContextMenu = contextMenu;
+            ContextMenuStrip = contextMenuStrip;
 
             _hardwareNames = new UserOption("sensorGadget.Hardwarenames", true, hardwareNamesItem, settings);
             _hardwareNames.Changed += delegate
@@ -250,8 +274,8 @@ namespace LibreHardwareMonitor.UI
             _smallFont.Dispose();
             _smallFont = null;
 
-            _darkWhite.Dispose();
-            _darkWhite = null;
+            _textBrush.Dispose();
+            _textBrush = null;
 
             _stringFormat.Dispose();
             _stringFormat = null;
@@ -424,6 +448,12 @@ namespace LibreHardwareMonitor.UI
             Resize((int)Math.Round(17.3 * scaledFontSize));
         }
 
+        private void SetFontColor(Color color)
+        {
+            _textBrush?.Dispose();
+            _textBrush = new SolidBrush(color);
+        }
+
         private void Resize()
         {
             Resize(Size.Width);
@@ -544,7 +574,7 @@ namespace LibreHardwareMonitor.UI
                 x = LeftBorder + 1;
                 g.DrawString("Right-click on a sensor in the main window and select " +
                   "\"Show in Gadget\" to show the sensor here.",
-                  _smallFont, Brushes.White,
+                  _smallFont, _textBrush,
                   new Rectangle(x, y - 1, w - RightBorder - x, 0));
             }
 
@@ -557,7 +587,7 @@ namespace LibreHardwareMonitor.UI
                     x = LeftBorder + 1;
                     g.DrawImage(HardwareTypeImage.Instance.GetImage(pair.Key.HardwareType), new Rectangle(x, y + 1, _iconSize, _iconSize));
                     x += _iconSize + 1;
-                    g.DrawString(pair.Key.Name, _largeFont, Brushes.White, new Rectangle(x, y - 1, w - RightBorder - x, 0), _stringFormat);
+                    g.DrawString(pair.Key.Name, _largeFont, _textBrush, new Rectangle(x, y - 1, w - RightBorder - x, 0), _stringFormat);
                     y += _hardwareLineHeight;
                 }
 
@@ -664,7 +694,7 @@ namespace LibreHardwareMonitor.UI
                             formatted = "-";
                         }
 
-                        g.DrawString(formatted, _smallFont, _darkWhite, new RectangleF(-1, y - 1, w - _rightMargin + 3, 0), _alignRightStringFormat);
+                        g.DrawString(formatted, _smallFont, _textBrush, new RectangleF(-1, y - 1, w - _rightMargin + 3, 0), _alignRightStringFormat);
 
                         remainingWidth = w - (int)Math.Floor(g.MeasureString(formatted, _smallFont, w, StringFormat.GenericTypographic).Width) - _rightMargin;
                     }
@@ -677,7 +707,7 @@ namespace LibreHardwareMonitor.UI
                     remainingWidth -= _leftMargin + 2;
                     if (remainingWidth > 0)
                     {
-                        g.DrawString(sensor.Name, _smallFont, _darkWhite, new RectangleF(_leftMargin - 1, y - 1, remainingWidth, 0), _trimStringFormat);
+                        g.DrawString(sensor.Name, _smallFont, _textBrush, new RectangleF(_leftMargin - 1, y - 1, remainingWidth, 0), _trimStringFormat);
                     }
                     y += _sensorLineHeight;
                 }
